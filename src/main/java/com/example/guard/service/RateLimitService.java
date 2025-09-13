@@ -8,12 +8,14 @@ import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 @Service
 public class RateLimitService {
     
     private final Map<String, AtomicInteger> requestCounts = new ConcurrentHashMap<>();
     private final Map<String, LocalDateTime> lastReset = new ConcurrentHashMap<>();
+    private final AtomicLong totalRequests = new AtomicLong(0);
     
     private static final int MAX_REQUESTS = 10; // 10 запросов
     private static final Duration WINDOW = Duration.ofMinutes(1); // в минуту
@@ -24,6 +26,8 @@ public class RateLimitService {
      * @return true если запрос разрешен, false если превышен лимит
      */
     public boolean isAllowed(String clientId) {
+        totalRequests.incrementAndGet();
+        
         LocalDateTime now = LocalDateTime.now();
         String key = clientId + ":" + now.truncatedTo(ChronoUnit.MINUTES);
         
@@ -97,6 +101,33 @@ public class RateLimitService {
         });
         
         lastReset.entrySet().removeIf(entry -> entry.getValue().isBefore(cutoff));
+    }
+    
+    /**
+     * Получает количество активных клиентов
+     */
+    public int getActiveClientsCount() {
+        return requestCounts.size();
+    }
+    
+    /**
+     * Получает общее количество запросов
+     */
+    public long getTotalRequestsCount() {
+        return totalRequests.get();
+    }
+    
+    /**
+     * Получает статистику rate limiting
+     */
+    public Map<String, Object> getStatistics() {
+        Map<String, Object> stats = new ConcurrentHashMap<>();
+        stats.put("maxRequests", MAX_REQUESTS);
+        stats.put("windowMinutes", WINDOW.toMinutes());
+        stats.put("activeClients", getActiveClientsCount());
+        stats.put("totalRequests", getTotalRequestsCount());
+        stats.put("currentTime", LocalDateTime.now());
+        return stats;
     }
 }
 

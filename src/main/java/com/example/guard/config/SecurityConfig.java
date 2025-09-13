@@ -3,6 +3,7 @@ package com.example.guard.config;
 import com.example.guard.entity.Role;
 import com.example.guard.entity.User;
 import com.example.guard.repository.UserRepository;
+import com.example.guard.security.SecurityFilter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -15,6 +16,7 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 import java.util.Optional;
 
@@ -25,6 +27,9 @@ public class SecurityConfig {
     
     @Autowired
     private UserRepository userRepository;
+    
+    @Autowired
+    private SecurityFilter securityFilter;
     
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -38,13 +43,14 @@ public class SecurityConfig {
                 .requestMatchers("/admin/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
             )
-            .httpBasic(httpBasic -> httpBasic.realmName("RBAC Security Guard"))
+            .httpBasic(httpBasic -> httpBasic.realmName("RBAC Security Guard WAF"))
             .sessionManagement(session -> session
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             )
             .headers(headers -> headers
                 .frameOptions(frameOptions -> frameOptions.sameOrigin()) // Для H2 консоли
             )
+            .addFilterBefore(securityFilter, UsernamePasswordAuthenticationFilter.class)
             .userDetailsService(userDetailsService())
             .build();
     }
